@@ -2,48 +2,42 @@
 
 KYROS is a powerful command-line AI assistant designed to run on Android via the **Termux** app. It combines local automation (Intents, system controls) with the intelligence of **Google Gemini**.
 
-## 🛠 Prerequisites
+## 🧠 AI Brain & Voice (v1.7)
 
-1.  **Termux**: Install it from F-Droid (preferred) or the Github releases.
-2.  **Termux:API**: Install the Termux:API app from F-Droid.
-3.  **Packages**: Run the following in Termux:
-    ```bash
-    pkg update && pkg upgrade
-    pkg install python termux-api
-    pip install requests flask
-    ```
+KYROS now leverages the latest **Gemini 3.1** models:
+- **gemini-3.1-pro-preview**: Deep Reasoning & Coding.
+- **gemini-3.1-flash-lite-preview**: Fast Logic & Sub-tasks.
+- **gemini-3.1-flash-live-preview**: Interactive Brain.
+- **gemini-3.1-flash-tts-preview**: Dedicated voice response model.
+
+### 🎙️ Voice Interaction
+- **TTS (Talking)**: KYROS automatically speaks through your phone using standard Android TTS via `termux-api`.
+- **STT (Listening)**: Type `voice` or `listen` (or tap the Mic button in Web UI) to activate the listener. Note: High-fidelity transcription can be done via Whisper tiny if installed manually.
 
 ## 🚀 Installation
 
-1.  Clone or download the KYROS files into a folder in Termux:
-2.  Navigate to the folder: `cd KYROS`
-3.  Grant storage permission if you want to use the File Manager:
+1.  **Termux Setup**: Install Termux and Termux:API from F-Droid.
+2.  **Packages**: Run the following in Termux:
     ```bash
-    termux-setup-storage
+    pkg update && pkg upgrade
+    pkg install python termux-api ffmpeg
+    pip install requests flask
     ```
-4.  Run KYROS:
-    ```bash
-    python kyros.py
-    ```
-
-## 🧠 Features
-
--   **YouTube**: `open youtube`, `search python on youtube`, `play https://... on youtube`
--   **WhatsApp**: `send whatsapp to Rahul saying hello` (Requires `contacts.json` setup)
--   **System**: `battery status`, `flashlight on`, `flashlight off`, `clipboard get`, `clipboard set "new text"`
--   **Files**: `create file notes.txt`, `list files`, `read file notes.txt`, `delete file notes.txt`
--   **Browser**: `search machine learning on google`, `open google.com`
--   **AI Fallback**: Ask anything like `what is quantum computing?` (Uses Gemini API)
+3.  **Run KYROS**: 
+    - Terminal mode: `python kyros.py`
+    - Web Dashboard: `python server.py` (Localhost:5000)
 
 ## 📁 Data Configuration
+- `config.json`: Stores your Gemini API Key.
+- `contacts.json`: Map names to phone numbers.
+- `shortcuts.json`: Custom multi-step macros.
 
--   `config.json`: Stores your Gemini API Key.
--   `contacts.json`: Map names to phone numbers (e.g., `{"Rahul": "+919876543210"}`).
--   `shortcuts.json`: Create macros like `"good morning"`.
--   `history.json`: Automatically stores last 100 commands.
-
-## ⚠️ Safety First
-KYROS will always ask for confirmation before:
--   Sending WhatsApp messages
--   Deleting files
--   Executing multi-step shortcuts
+## 🧠 Smart Intent Parsing
+- `open youtube`
+- `search python tutorials on google`
+- `send whatsapp to Rahul saying I am on my way`
+- `battery status`
+- `flashlight on`
+- `create file log.txt`
+- `party mode` (Runs pre-configured shortcut)
+- `voice` (Activates listening mode)

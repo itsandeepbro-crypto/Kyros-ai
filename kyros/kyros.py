@@ -58,13 +58,27 @@ class Kyros:
         time_str = datetime.now().strftime("%H:%M:%S")
         print(f"{Colors.DIM}[{time_str}]{Colors.ENDC} {color}{tag.upper()}{Colors.ENDC} {message}")
 
+    def speak(self, text):
+        # Remove markdown symbols for cleaner speech
+        clean_text = text.replace('*', '').replace('#', '').strip()
+        self.log("TTS", f"Speaking response...", Colors.BLUE)
+        self.execute_shell(f'termux-tts-speak "{clean_text}"')
+
+    def listen(self):
+        self.log("VOICE", "Listening... Speak now.", Colors.CYAN)
+        res = self.execute_shell("termux-speech-to-text")
+        if res and "Error" not in res:
+            self.log("VOICE", f"Detected: {res}")
+            return res
+        return None
+
     def banner(self):
         os.system('clear')
         print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.6 {Colors.DIM}│  AUTOMATION CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.7 {Colors.DIM}│  VOICE & AI CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
-   {Colors.BLUE}STATUS: {Colors.GREEN}ONLINE {Colors.DIM}│ {Colors.BLUE}STORAGE: {Colors.GREEN}ACTIVE {Colors.DIM}│ {Colors.BLUE}AI: {Colors.CYAN}READY{Colors.ENDC}
+   {Colors.BLUE}STATUS: {Colors.GREEN}ONLINE {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}ENABLED {Colors.DIM}│ {Colors.BLUE}AI: {Colors.CYAN}v3.1{Colors.ENDC}
         """)
 
     def execute_shell(self, command):
@@ -81,6 +95,10 @@ class Kyros:
     def parse_intent(self, text):
         text = text.lower().strip()
         
+        # Voice Commands
+        if text in ["listen", "voice", "hey kyros", "talk to me"]:
+            return {"type": "voice_input"}
+
         # Shortcuts
         if text in self.shortcuts:
             return {"type": "shortcut", "commands": self.shortcuts[text]}
@@ -218,23 +236,38 @@ class Kyros:
                     if os.path.exists(path): os.remove(path); self.log("SUCCESS", "Deleted.")
                     else: self.log("ERROR", "Not found", Colors.FAIL)
 
-        elif itype == "ai_query":
-            self.call_gemini(intent["query"])
+        elif itype == "voice_input":
+            voice_text = self.listen()
+            if voice_text:
+                self.run_command(voice_text)
 
-    def call_gemini(self, query):
+        elif itype == "ai_query":
+            # For complex coding/deep reasoning use Pro, otherwise Flash-Lite
+            model_type = "pro" if "code" in intent["query"] or "deep" in intent["query"] else "lite"
+            self.call_gemini(intent["query"], model_type=model_type)
+
+    def call_gemini(self, query, model_type="lite"):
         api_key = self.config.get("api_key", "").strip().strip('"').strip("'")
         if not api_key:
             self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
+        # Dynamic Model Selection for 3.1 Series
+        models = {
+            "lite": "gemini-3.1-flash-lite-preview",
+            "pro": "gemini-3.1-pro-preview",
+            "live": "gemini-3.1-flash-live-preview",
+            "tts": "gemini-3.1-flash-tts-preview"
+        }
+        selected_model = models.get(model_type, models["lite"])
+        
         import requests
-        # Using v1 endpoint and gemini-pro for stability
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{selected_model}:generateContent?key={api_key}"
         headers = {'Content-Type': 'application/json'}
         data = {"contents": [{"parts":[{"text": query}]}]}
         
         try:
-            print(f"{Colors.DIM}├─ {Colors.CYAN}CONSULTING AI BRAIN...{Colors.ENDC}")
+            print(f"{Colors.DIM}├─ {Colors.CYAN}CONSULTING {selected_model.upper()}...{Colors.ENDC}")
             response = requests.post(url, headers=headers, json=data)
             res_json = response.json()
             
@@ -251,6 +284,9 @@ class Kyros:
             print(f"{Colors.BLUE}{Colors.BOLD}┌── KYROS RESPONSE ──┐{Colors.ENDC}")
             print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
             print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
+            
+            # KYROS Talks back
+            self.speak(answer)
         except Exception as e:
             self.log("FAULT", str(e), Colors.FAIL)
 
