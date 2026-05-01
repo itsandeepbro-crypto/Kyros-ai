@@ -54,17 +54,17 @@ class Kyros:
             json.dump(self.history, f, indent=4)
 
     def log(self, tag, message, color=Colors.GREEN):
-        print(f"{color}[{tag}]{Colors.ENDC} {message}")
+        time_str = datetime.now().strftime("%H:%M:%S")
+        print(f"{Colors.DIM}[{time_str}]{Colors.ENDC} {color}{tag.upper()}{Colors.ENDC} {message}")
 
     def banner(self):
+        os.system('clear')
         print(rf"""{Colors.CYAN}{Colors.BOLD}
-   __  ____     _______  ____  ____ 
-  |  |/ /\ \   / / ___ \/  _ \/ ___|
-  |  ' /  \ \_/ / |  _  | / \ \___ \
-  |  . \   \   /| |_| | \_/ /  ___| |
-  |_|\_\   |_|  \_____/\____/|____/ v1.3
-        Android AI Automation System
-        {Colors.ENDC}""")
+   ┌──────────────────────────────────────────┐
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.5 {Colors.DIM}│  AUTOMATION CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   └──────────────────────────────────────────┘{Colors.ENDC}
+   {Colors.BLUE}STATUS: {Colors.GREEN}ONLINE {Colors.DIM}│ {Colors.BLUE}STORAGE: {Colors.GREEN}ACTIVE {Colors.DIM}│ {Colors.BLUE}AI: {Colors.CYAN}READY{Colors.ENDC}
+        """)
 
     def execute_shell(self, command):
         try:
@@ -223,33 +223,35 @@ class Kyros:
     def call_gemini(self, query):
         api_key = self.config.get("api_key", "").strip().strip('"').strip("'")
         if not api_key:
-            self.log("CONFIG", "Gemini API Key missing. Update config.json", Colors.WARNING)
+            self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
         import requests
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # Using v1 endpoint and gemini-pro for stability
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
         headers = {'Content-Type': 'application/json'}
         data = {"contents": [{"parts":[{"text": query}]}]}
         
         try:
-            self.log("KYROS", "Thinking...", Colors.BLUE)
+            print(f"{Colors.DIM}├─ {Colors.CYAN}CONSULTING AI BRAIN...{Colors.ENDC}")
             response = requests.post(url, headers=headers, json=data)
             res_json = response.json()
             
             if "error" in res_json:
-                error_msg = res_json["error"].get("message", "Unknown error from API")
-                self.log("ERROR", f"Gemini API Error: {error_msg}", Colors.FAIL)
+                error_msg = res_json["error"].get("message", "Unknown error")
+                self.log("API_ERR", error_msg, Colors.FAIL)
                 return
 
             if 'candidates' not in res_json or not res_json['candidates']:
-                self.log("ERROR", f"Unexpected API Response (Status: {response.status_code})", Colors.FAIL)
-                print(f"{Colors.DIM}Details: {res_json}{Colors.ENDC}")
+                self.log("EMPTY", "No response from AI brain.", Colors.FAIL)
                 return
 
             answer = res_json['candidates'][0]['content']['parts'][0]['text']
-            print(f"{Colors.BLUE}{Colors.BOLD}KYROS: {Colors.ENDC}{answer}")
+            print(f"{Colors.BLUE}{Colors.BOLD}┌── KYROS RESPONSE ──┐{Colors.ENDC}")
+            print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
+            print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
         except Exception as e:
-            self.log("ERROR", f"AI Brain failed: {str(e)}", Colors.FAIL)
+            self.log("FAULT", str(e), Colors.FAIL)
 
 
     def run_command(self, cmd):
