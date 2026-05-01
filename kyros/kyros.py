@@ -57,14 +57,14 @@ class Kyros:
         print(f"{color}[{tag}]{Colors.ENDC} {message}")
 
     def banner(self):
-        print(fr"{Colors.CYAN}{Colors.BOLD}
+        print(rf"""{Colors.CYAN}{Colors.BOLD}
    __  ____     _______  ____  ____ 
   |  |/ /\ \   / / ___ \/  _ \/ ___|
   |  ' /  \ \_/ / |  _  | / \ \___ \
   |  . \   \   /| |_| | \_/ /  ___| |
-  |_|\_\   |_|  \_____/\____/|____/ v1.2
+  |_|\_\   |_|  \_____/\____/|____/ v1.3
         Android AI Automation System
-        {Colors.ENDC}")
+        {Colors.ENDC}""")
 
     def execute_shell(self, command):
         try:
@@ -221,7 +221,7 @@ class Kyros:
             self.call_gemini(intent["query"])
 
     def call_gemini(self, query):
-        api_key = self.config.get("api_key")
+        api_key = self.config.get("api_key", "").strip().strip('"').strip("'")
         if not api_key:
             self.log("CONFIG", "Gemini API Key missing. Update config.json", Colors.WARNING)
             return
@@ -262,7 +262,8 @@ class Kyros:
         if not self.config.get("api_key"):
             key = input(f"{Colors.WARNING}No API Key found. Enter Gemini API Key (or press enter to skip AI): {Colors.ENDC}")
             if key:
-                self.config["api_key"] = key
+                processed_key = key.strip().strip('"').strip("'")
+                self.config["api_key"] = processed_key
                 with open(self.config_path, 'w') as f: json.dump(self.config, f, indent=4)
 
         while True:
