@@ -61,13 +61,23 @@ class Kyros:
     def speak(self, text):
         # Remove markdown symbols for cleaner speech
         clean_text = text.replace('*', '').replace('#', '').strip()
-        self.log("TTS", f"Speaking response...", Colors.BLUE)
-        self.execute_shell(f'termux-tts-speak "{clean_text}"')
+        self.log("TTS", f"Speaking...", Colors.BLUE)
+        # Added -r 1.2 for faster speech delivery to address 'slow' concerns
+        self.execute_shell(f'termux-tts-speak -r 1.2 "{clean_text}"')
 
     def listen(self):
-        self.log("VOICE", "Listening... Speak now.", Colors.CYAN)
-        res = self.execute_shell("termux-speech-to-text")
+        self.log("VOICE", "LISTENING...", Colors.CYAN)
+        # Check for whisper-tiny local binary first (High Accuracy)
+        # Otherwise fallback to termux-speech-to-text (High Speed)
+        if os.path.exists("/usr/local/bin/whisper-tiny") or os.path.exists("./whisper-tiny"):
+            self.log("SYNC", "Using Whisper-Tiny engine", Colors.DIM)
+            self.execute_shell("termux-microphone-record -f voice.wav -l 3")
+            res = self.execute_shell("whisper-tiny -m models/tiny.bin -f voice.wav -otxt && cat voice.wav.txt")
+        else:
+            res = self.execute_shell("termux-speech-to-text")
+        
         if res and "Error" not in res:
+            res = res.strip()
             self.log("VOICE", f"Detected: {res}")
             return res
         return None
@@ -76,9 +86,9 @@ class Kyros:
         os.system('clear')
         print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.7 {Colors.DIM}│  VOICE & AI CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.8 {Colors.DIM}│  SPEED-OPTIMIZED  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
-   {Colors.BLUE}STATUS: {Colors.GREEN}ONLINE {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}ENABLED {Colors.DIM}│ {Colors.BLUE}AI: {Colors.CYAN}v3.1{Colors.ENDC}
+   {Colors.BLUE}ENGINE: {Colors.GREEN}FLASH-LITE-3.1 {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}WHISPER-READY{Colors.ENDC}
         """)
 
     def execute_shell(self, command):
@@ -252,12 +262,11 @@ class Kyros:
             self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
-        # Dynamic Model Selection for 3.1 Series
+        # Optimized for speed: Fast-Lite by default unless Pro is explicitly needed
         models = {
             "lite": "gemini-3.1-flash-lite-preview",
             "pro": "gemini-3.1-pro-preview",
-            "live": "gemini-3.1-flash-live-preview",
-            "tts": "gemini-3.1-flash-tts-preview"
+            "live": "gemini-3.1-flash-live-preview"
         }
         selected_model = models.get(model_type, models["lite"])
         

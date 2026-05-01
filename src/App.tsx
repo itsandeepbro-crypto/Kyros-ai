@@ -51,8 +51,8 @@ const Header = () => (
       </div>
     </div>
     <div className="flex gap-6 font-mono text-[11px] text-white/40 uppercase tracking-widest">
-      <span className="flex items-center gap-2"><Smartphone className="w-3 h-3" /> Termux Native</span>
-      <span className="flex items-center gap-2 text-cyan-500"><Zap className="w-3 h-3 animate-pulse" /> Live v1.0.4</span>
+      <span className="flex items-center gap-2"><Smartphone className="w-3 h-3" /> Whisper Ready</span>
+      <span className="flex items-center gap-2 text-cyan-500"><Zap className="w-3 h-3 animate-pulse" /> Turbo v1.8</span>
     </div>
   </header>
 );
