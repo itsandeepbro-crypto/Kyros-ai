@@ -62,8 +62,8 @@ class Kyros:
         # Remove markdown symbols for cleaner speech
         clean_text = text.replace('*', '').replace('#', '').strip()
         self.log("TTS", f"Speaking...", Colors.BLUE)
-        # Increased to 1.3 for even faster delivery as requested
-        self.execute_shell(f'termux-tts-speak -r 1.3 "{clean_text}"')
+        # Run in background (&) so it doesn't block the next command
+        self.execute_shell(f'termux-tts-speak -r 1.3 "{clean_text}" &')
 
     def listen(self):
         self.log("VOICE", "LISTENING...", Colors.CYAN)
@@ -86,9 +86,9 @@ class Kyros:
         os.system('clear')
         print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v2.0 {Colors.DIM}│  TURBO AUTOMATION │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v2.1 {Colors.DIM}│  TURBO AUTOMATION │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
-   {Colors.BLUE}ENGINE: {Colors.GREEN}FLASH-1.5-TURBO {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}WHISPER-HYBRID{Colors.ENDC}
+   {Colors.BLUE}ENGINE: {Colors.GREEN}HYBRID-FLASH-v2 {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}TURBO-TTS{Colors.ENDC}
         """)
 
     def execute_shell(self, command):
@@ -126,7 +126,13 @@ class Kyros:
             "chrome": "com.android.chrome",
             "gmail": "com.google.android.gm",
             "maps": "com.google.android.apps.maps",
-            "spotify": "com.spotify.music"
+            "spotify": "com.spotify.music",
+            "telegram": "org.telegram.messenger",
+            "snapchat": "com.snapchat.android",
+            "tiktok": "com.zhiliaoapp.musically",
+            "twitter": "com.twitter.android",
+            "x": "com.twitter.android",
+            "netflix": "com.netflix.mediaclient"
         }
 
         # Multi-App Launch
@@ -271,33 +277,42 @@ class Kyros:
             self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
-        # FORCE FAST MODEL: Gemini 1.5 Flash is currently the fastest stable choice
-        # Models 3.1 are in preview and can be slower/unstable
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        headers = {'Content-Type': 'application/json'}
-        data = {"contents": [{"parts":[{"text": query}]}]}
+        # Fallback list for stability
+        models_to_try = [
+            "gemini-1.5-flash", 
+            "gemini-1.5-flash-8b",
+            "gemini-pro"
+        ]
         
         import requests
-        for attempt in range(2): # Simple retry logic
+        
+        last_error = ""
+        for model in models_to_try:
             try:
-                self.log("KYROS", "Thinking...", Colors.BLUE)
-                response = requests.post(url, headers=headers, json=data, timeout=8)
+                url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={api_key}"
+                headers = {'Content-Type': 'application/json'}
+                data = {"contents": [{"parts":[{"text": query}]}]}
+                
+                # Low timeout for 'Turbo' feel
+                response = requests.post(url, headers=headers, json=data, timeout=10)
                 res_json = response.json()
                 
                 if "error" in res_json:
-                    self.log("API_ERR", res_json["error"].get("message"), Colors.FAIL)
-                    return
+                    last_error = res_json["error"].get("message", "Unknown")
+                    continue
 
                 if 'candidates' in res_json:
                     answer = res_json['candidates'][0]['content']['parts'][0]['text']
-                    print(f"{Colors.BLUE}{Colors.BOLD}┌── KYROS RESPONSE ──┐{Colors.ENDC}")
+                    print(f"\n{Colors.BLUE}{Colors.BOLD}┌── KYROS ({model}) ──┐{Colors.ENDC}")
                     print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
                     print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
                     self.speak(answer)
                     return
             except Exception as e:
-                if attempt == 0: continue
-                self.log("FAULT", str(e), Colors.FAIL)
+                last_error = str(e)
+                continue
+        
+        self.log("FAULT", f"All brains failed. Last error: {last_error}", Colors.FAIL)
 
 
     def run_command(self, cmd):
