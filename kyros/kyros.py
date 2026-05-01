@@ -19,6 +19,7 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     DIM = '\033[2m'
+    WHITE = '\033[97m'
 
 class Kyros:
     def __init__(self):
@@ -59,9 +60,9 @@ class Kyros:
 
     def banner(self):
         os.system('clear')
-        print(rf"""{Colors.CYAN}{Colors.BOLD}
+        print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.5 {Colors.DIM}│  AUTOMATION CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.6 {Colors.DIM}│  AUTOMATION CORE  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
    {Colors.BLUE}STATUS: {Colors.GREEN}ONLINE {Colors.DIM}│ {Colors.BLUE}STORAGE: {Colors.GREEN}ACTIVE {Colors.DIM}│ {Colors.BLUE}AI: {Colors.CYAN}READY{Colors.ENDC}
         """)

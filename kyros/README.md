@@ -10,7 +10,7 @@ KYROS is a powerful command-line AI assistant designed to run on Android via the
     ```bash
     pkg update && pkg upgrade
     pkg install python termux-api
-    pip install requests
+    pip install requests flask
     ```
 
 ## 🚀 Installation
