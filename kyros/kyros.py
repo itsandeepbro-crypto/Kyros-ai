@@ -22,17 +22,19 @@ class Colors:
 
 class Kyros:
     def __init__(self):
-        self.config_path = "config.json"
-        self.contacts_path = "contacts.json"
-        self.history_path = "history.json"
-        self.shortcuts_path = "shortcuts.json"
+        # Fix paths to be relative to the script location
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_path = os.path.join(self.base_dir, "config.json")
+        self.contacts_path = os.path.join(self.base_dir, "contacts.json")
+        self.history_path = os.path.join(self.base_dir, "history.json")
+        self.shortcuts_path = os.path.join(self.base_dir, "shortcuts.json")
         self.load_data()
         
     def load_data(self):
         # Initialize default files if they don't exist
         for path, default in [
             (self.config_path, {"api_key": ""}),
-            (self.contacts_path, {}),
+            (self.contacts_path, {"Rahul": "+919876543210"}),
             (self.history_path, []),
             (self.shortcuts_path, {"good morning": ["flashlight on", "battery status"]})
         ]:
@@ -55,14 +57,14 @@ class Kyros:
         print(f"{color}[{tag}]{Colors.ENDC} {message}")
 
     def banner(self):
-        print(f"""{Colors.CYAN}{Colors.BOLD}
+        print(fr"{Colors.CYAN}{Colors.BOLD}
    __  ____     _______  ____  ____ 
   |  |/ /\ \   / / ___ \/  _ \/ ___|
-  |  ' /  \ \_/ / |  _  | / \ \___ \\
+  |  ' /  \ \_/ / |  _  | / \ \___ \
   |  . \   \   /| |_| | \_/ /  ___| |
-  |_|\\_\\   |_|  \_____/\____/|____/ v1.0
+  |_|\_\   |_|  \_____/\____/|____/ v1.2
         Android AI Automation System
-        {Colors.ENDC}""")
+        {Colors.ENDC}")
 
     def execute_shell(self, command):
         try:
@@ -224,7 +226,6 @@ class Kyros:
             self.log("CONFIG", "Gemini API Key missing. Update config.json", Colors.WARNING)
             return
         
-        # Simple REST call to Gemini (requires requests)
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         headers = {'Content-Type': 'application/json'}
@@ -234,10 +235,22 @@ class Kyros:
             self.log("KYROS", "Thinking...", Colors.BLUE)
             response = requests.post(url, headers=headers, json=data)
             res_json = response.json()
+            
+            if "error" in res_json:
+                error_msg = res_json["error"].get("message", "Unknown error from API")
+                self.log("ERROR", f"Gemini API Error: {error_msg}", Colors.FAIL)
+                return
+
+            if 'candidates' not in res_json or not res_json['candidates']:
+                self.log("ERROR", f"Unexpected API Response (Status: {response.status_code})", Colors.FAIL)
+                print(f"{Colors.DIM}Details: {res_json}{Colors.ENDC}")
+                return
+
             answer = res_json['candidates'][0]['content']['parts'][0]['text']
             print(f"{Colors.BLUE}{Colors.BOLD}KYROS: {Colors.ENDC}{answer}")
         except Exception as e:
             self.log("ERROR", f"AI Brain failed: {str(e)}", Colors.FAIL)
+
 
     def run_command(self, cmd):
         intent = self.parse_intent(cmd)
