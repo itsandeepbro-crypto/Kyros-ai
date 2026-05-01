@@ -62,8 +62,8 @@ class Kyros:
         # Remove markdown symbols for cleaner speech
         clean_text = text.replace('*', '').replace('#', '').strip()
         self.log("TTS", f"Speaking...", Colors.BLUE)
-        # Added -r 1.2 for faster speech delivery to address 'slow' concerns
-        self.execute_shell(f'termux-tts-speak -r 1.2 "{clean_text}"')
+        # Increased to 1.3 for even faster delivery as requested
+        self.execute_shell(f'termux-tts-speak -r 1.3 "{clean_text}"')
 
     def listen(self):
         self.log("VOICE", "LISTENING...", Colors.CYAN)
@@ -86,13 +86,17 @@ class Kyros:
         os.system('clear')
         print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v1.8 {Colors.DIM}│  SPEED-OPTIMIZED  │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v2.0 {Colors.DIM}│  TURBO AUTOMATION │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
-   {Colors.BLUE}ENGINE: {Colors.GREEN}FLASH-LITE-3.1 {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}WHISPER-READY{Colors.ENDC}
+   {Colors.BLUE}ENGINE: {Colors.GREEN}FLASH-1.5-TURBO {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}WHISPER-HYBRID{Colors.ENDC}
         """)
 
     def execute_shell(self, command):
         try:
+            # Run in background for app launches to avoid blocking KYROS
+            if "monkey" in command or "am start" in command:
+                subprocess.Popen(command + " > /dev/null 2>&1", shell=True)
+                return "Launching in background..."
             result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
             return result.decode('utf-8').strip()
         except subprocess.CalledProcessError as e:
@@ -113,7 +117,30 @@ class Kyros:
         if text in self.shortcuts:
             return {"type": "shortcut", "commands": self.shortcuts[text]}
 
-        # YouTube
+        # App Mapping
+        app_map = {
+            "youtube": "com.google.android.youtube",
+            "whatsapp": "com.whatsapp",
+            "facebook": "com.facebook.katana",
+            "instagram": "com.instagram.android",
+            "chrome": "com.android.chrome",
+            "gmail": "com.google.android.gm",
+            "maps": "com.google.android.apps.maps",
+            "spotify": "com.spotify.music"
+        }
+
+        # Multi-App Launch
+        if "open" in text and not ("http" in text or "." in text):
+            detected = []
+            for name, pkg in app_map.items():
+                if name in text: detected.append(pkg)
+            if detected: return {"type": "app_multi_launch", "packages": detected}
+            
+            # Simple app launch fallback
+            app_name = text.replace("open", "").strip()
+            if app_name: return {"type": "app_launch", "app": app_name}
+
+        # YouTube specific
         if "youtube" in text:
             if "search" in text:
                 query = text.split("search")[1].split("on youtube")[0].strip()
@@ -121,7 +148,6 @@ class Kyros:
             if "play" in text and "http" in text:
                 url = text.split("play")[1].split("on youtube")[0].strip()
                 return {"type": "youtube_play", "url": url}
-            return {"type": "app_open", "package": "com.google.android.youtube"}
 
         # WhatsApp
         if "whatsapp" in text and "send" in text:
@@ -152,28 +178,6 @@ class Kyros:
             if not url.startswith("http"): url = "https://" + url
             return {"type": "browser_open", "url": url}
 
-        # App Management
-        if "open" in text:
-            app_name = text.replace("open", "").strip()
-            return {"type": "app_launch", "app": app_name}
-        if "close" in text:
-            app_name = text.replace("close", "").strip()
-            return {"type": "app_kill", "app": app_name}
-
-        # Files
-        if "file" in text:
-            if "create" in text:
-                filename = text.split("create file")[1].strip()
-                return {"type": "file_create", "name": filename}
-            if "read" in text:
-                filename = text.split("read file")[1].strip()
-                return {"type": "file_read", "name": filename}
-            if "delete" in text:
-                filename = text.split("delete file")[1].strip()
-                return {"type": "file_delete", "name": filename}
-            if "list" in text:
-                return {"type": "file_list"}
-
         # AI Fallback
         return {"type": "ai_query", "query": text}
 
@@ -193,10 +197,15 @@ class Kyros:
         elif itype == "youtube_play":
             self.execute_shell(f"am start -a android.intent.action.VIEW '{intent['url']}'")
 
-        elif itype == "app_open" or itype == "app_launch":
-            # Simplistic launch for known apps or search by name (requires more logic for package maps)
-            pkg = intent.get("package", intent.get("app"))
-            self.execute_shell(f"am start -n {pkg}") # Note: requires package name usually
+        elif itype == "app_multi_launch":
+            for pkg in intent["packages"]:
+                self.log("LAUNCH", f"Starting {pkg}...")
+                self.execute_shell(f"monkey -p {pkg} 1")
+
+        elif itype == "app_launch":
+            pkg = intent.get("app")
+            self.log("LAUNCH", f"Attempting to launch {pkg}...")
+            self.execute_shell(f"monkey -p {pkg} 1")
 
         elif itype == "whatsapp_send":
             contact_name = intent["contact"]
@@ -262,42 +271,33 @@ class Kyros:
             self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
-        # Optimized for speed: Fast-Lite by default unless Pro is explicitly needed
-        models = {
-            "lite": "gemini-3.1-flash-lite-preview",
-            "pro": "gemini-3.1-pro-preview",
-            "live": "gemini-3.1-flash-live-preview"
-        }
-        selected_model = models.get(model_type, models["lite"])
-        
-        import requests
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{selected_model}:generateContent?key={api_key}"
+        # FORCE FAST MODEL: Gemini 1.5 Flash is currently the fastest stable choice
+        # Models 3.1 are in preview and can be slower/unstable
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         headers = {'Content-Type': 'application/json'}
         data = {"contents": [{"parts":[{"text": query}]}]}
         
-        try:
-            print(f"{Colors.DIM}├─ {Colors.CYAN}CONSULTING {selected_model.upper()}...{Colors.ENDC}")
-            response = requests.post(url, headers=headers, json=data)
-            res_json = response.json()
-            
-            if "error" in res_json:
-                error_msg = res_json["error"].get("message", "Unknown error")
-                self.log("API_ERR", error_msg, Colors.FAIL)
-                return
+        import requests
+        for attempt in range(2): # Simple retry logic
+            try:
+                self.log("KYROS", "Thinking...", Colors.BLUE)
+                response = requests.post(url, headers=headers, json=data, timeout=8)
+                res_json = response.json()
+                
+                if "error" in res_json:
+                    self.log("API_ERR", res_json["error"].get("message"), Colors.FAIL)
+                    return
 
-            if 'candidates' not in res_json or not res_json['candidates']:
-                self.log("EMPTY", "No response from AI brain.", Colors.FAIL)
-                return
-
-            answer = res_json['candidates'][0]['content']['parts'][0]['text']
-            print(f"{Colors.BLUE}{Colors.BOLD}┌── KYROS RESPONSE ──┐{Colors.ENDC}")
-            print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
-            print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
-            
-            # KYROS Talks back
-            self.speak(answer)
-        except Exception as e:
-            self.log("FAULT", str(e), Colors.FAIL)
+                if 'candidates' in res_json:
+                    answer = res_json['candidates'][0]['content']['parts'][0]['text']
+                    print(f"{Colors.BLUE}{Colors.BOLD}┌── KYROS RESPONSE ──┐{Colors.ENDC}")
+                    print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
+                    print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
+                    self.speak(answer)
+                    return
+            except Exception as e:
+                if attempt == 0: continue
+                self.log("FAULT", str(e), Colors.FAIL)
 
 
     def run_command(self, cmd):
