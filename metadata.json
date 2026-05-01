@@ -1,0 +1,6 @@
+{
+  "name": "KYROS: Android AI Assistant",
+  "description": "An advanced AI-powered automation assistant for Android via Termux. Features YouTube/WhatsApp control, file management, system automation, and Gemini-powered fallback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
