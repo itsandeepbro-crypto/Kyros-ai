@@ -62,8 +62,8 @@ class Kyros:
         # Remove markdown symbols for cleaner speech
         clean_text = text.replace('*', '').replace('#', '').strip()
         self.log("TTS", f"Speaking...", Colors.BLUE)
-        # Run in background (&) so it doesn't block the next command
-        self.execute_shell(f'termux-tts-speak -r 1.3 "{clean_text}" &')
+        # Increased to 1.4 for Turbo experience and backgrounded
+        self.execute_shell(f'termux-tts-speak -r 1.4 "{clean_text}" &')
 
     def listen(self):
         self.log("VOICE", "LISTENING...", Colors.CYAN)
@@ -86,21 +86,21 @@ class Kyros:
         os.system('clear')
         print(f"""{Colors.CYAN}{Colors.BOLD}
    ┌──────────────────────────────────────────┐
-   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v2.1 {Colors.DIM}│  TURBO AUTOMATION │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
+   │  {Colors.WHITE}K Y R O S  {Colors.CYAN}v2.5 {Colors.DIM}│  TURBO ELITE OS   │{Colors.ENDC}{Colors.CYAN}{Colors.BOLD}
    └──────────────────────────────────────────┘{Colors.ENDC}
-   {Colors.BLUE}ENGINE: {Colors.GREEN}HYBRID-FLASH-v2 {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}TURBO-TTS{Colors.ENDC}
+   {Colors.BLUE}ENGINE: {Colors.GREEN}FLASH-8B-HYBRID {Colors.DIM}│ {Colors.BLUE}VOICE: {Colors.GREEN}ULTRA-DRIVE{Colors.ENDC}
         """)
 
     def execute_shell(self, command):
         try:
-            # Run in background for app launches to avoid blocking KYROS
-            if "monkey" in command or "am start" in command:
-                subprocess.Popen(command + " > /dev/null 2>&1", shell=True)
-                return "Launching in background..."
+            # Non-blocking for automation to prevent UI freeze
+            if any(x in command for x in ["am start", "monkey", "termux-tts"]):
+                subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return "Dispatched."
             result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
             return result.decode('utf-8').strip()
-        except subprocess.CalledProcessError as e:
-            return f"Error: {e.output.decode('utf-8').strip()}"
+        except Exception as e:
+            return f"Error: {str(e)}"
 
     def ask_confirm(self, message):
         res = input(f"{Colors.WARNING}[CONFIRM]{Colors.ENDC} {message} (y/n): ").lower()
@@ -267,21 +267,20 @@ class Kyros:
                 self.run_command(voice_text)
 
         elif itype == "ai_query":
-            # For complex coding/deep reasoning use Pro, otherwise Flash-Lite
-            model_type = "pro" if "code" in intent["query"] or "deep" in intent["query"] else "lite"
-            self.call_gemini(intent["query"], model_type=model_type)
+            self.call_gemini(intent["query"])
 
-    def call_gemini(self, query, model_type="lite"):
+    def call_gemini(self, query):
         api_key = self.config.get("api_key", "").strip().strip('"').strip("'")
         if not api_key:
             self.log("CONFIG", "Gemini API Key missing.", Colors.WARNING)
             return
         
-        # Fallback list for stability
+        # Optimized model pool for V1BETA
         models_to_try = [
-            "gemini-1.5-flash", 
-            "gemini-1.5-flash-8b",
-            "gemini-pro"
+            "gemini-1.5-flash-8b", # Lightest and fastest for basic queries
+            "gemini-1.5-flash",    # Standard fast model
+            "gemini-1.5-pro",      # Heavy duty
+            "gemini-pro"           # Legacy fallback
         ]
         
         import requests
@@ -289,12 +288,13 @@ class Kyros:
         last_error = ""
         for model in models_to_try:
             try:
-                url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={api_key}"
+                # Using v1beta for better model compatibility and newer features
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
                 headers = {'Content-Type': 'application/json'}
                 data = {"contents": [{"parts":[{"text": query}]}]}
                 
-                # Low timeout for 'Turbo' feel
-                response = requests.post(url, headers=headers, json=data, timeout=10)
+                # Faster timeout for turbo feel
+                response = requests.post(url, headers=headers, json=data, timeout=8)
                 res_json = response.json()
                 
                 if "error" in res_json:
@@ -303,7 +303,7 @@ class Kyros:
 
                 if 'candidates' in res_json:
                     answer = res_json['candidates'][0]['content']['parts'][0]['text']
-                    print(f"\n{Colors.BLUE}{Colors.BOLD}┌── KYROS ({model}) ──┐{Colors.ENDC}")
+                    print(f"\n{Colors.BLUE}{Colors.BOLD}┌── KYROS ({model.upper()}) ──┐{Colors.ENDC}")
                     print(f"{Colors.WHITE}{answer}{Colors.ENDC}")
                     print(f"{Colors.BLUE}└───────────────────┘{Colors.ENDC}")
                     self.speak(answer)
